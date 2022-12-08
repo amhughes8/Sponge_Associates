@@ -1,0 +1,890 @@
+---
+title: 'Honors Thesis - December 2022: SPONGES AS BIODIVERSITY MULTIPLIERS IN BELIZEAN
+  MANGROVES - MACROSYMBIONTS OF FIRE SPONGE (Tedania ignis) AND GARLIC SPONGE (Lissodendoryx
+  isodictyalis) IN MANGROVE PONDS AND CREEKS'
+author: "Annabel M. Hughes"
+date: "11/16/2022"
+output: html_document
+---
+```{r packages, echo=FALSE} 
+
+library(ggplot2)
+library(lme4)
+library(plotly)
+library(ggridges)
+library(tidyverse)
+library(arsenal) 
+library(Rmisc)
+library(lmerTest)
+library(emmeans)
+library(reshape)
+library(readxl)
+library(reshape2)
+library(viridis)
+library(gridExtra)
+library("dplyr")
+library("ggpubr")
+library(vegan)
+
+```
+
+```{r Symbiont_Abundance}
+data = read.csv("/Users/annabelhughes/Desktop/Honors\ Thesis/CODE/META_COUNTS.csv")
+head(data)
+str(data)
+
+data$sponge_species = as.factor(data$sponge_species)
+data$collection_site = as.factor(data$collection_site)
+data$flow_type = as.factor(data$flow_type)
+data$pair = as.factor(data$pair)
+data$sponge_id = as.factor(data$sponge_id)
+
+str(data)
+
+#sponge colors
+colors = c("#5BBCD6", "#F98400")
+
+#total symbionts regardless of size per sponge host
+plot = ggplot(data, aes(x = sponge_id, y = total_sym_ALL, fill = sponge_species)) + 
+  geom_bar(aes(x=sponge_id, y = total_sym_ALL, fill = sponge_species), colour="black", stat = "identity") +
+  scale_fill_manual(values = colors,name = "Sponge Species", labels = c("Lissodendoryx isodictyalis", "Tedania ignis")) +
+  xlab("Pair") + # x axis label
+  ylab("Total Symbionts") + # y axis label
+  theme_minimal() +
+  scale_x_discrete(labels=c("TMI_19A_01LD" = "1", "TMI_19A_02TI" = "1","TMI_19A_03LD" = "2","TMI_19A_04TI" = "2","TMI_19A_05LD" = "3","TMI_19A_06TI" = "3","TMI_19A_07LD" = "4","TMI_19A_08TI" = "4","TMI_19A_09LD" = "5","TMI_19A_10TI" = "5","TMI_19A_11LD" = "6","TMI_19A_12TI" = "6","TMI_19A_13LD" = "7","TMI_19A_14TI" = "7","TMI_19A_15LD" = "8","TMI_19A_16TI" = "8","TMI_19A_17LD" = "9","TMI_19A_18TI" = "9","TMI_19A_19LD" = "10","TMI_19A_20TI" = "10","TMI_19A_21LD" = "11","TMI_19A_22TI" = "11","TMI_19A_23LD" = "12","TMI_19A_24TI" = "12","TMI_19A_25LD" = "13","TMI_19A_26TI" = "13","TMI_19A_27LD" = "14","TMI_19A_28TI" = "14","TMI_19A_29LD" = "15","TMI_19A_30TI" = "15","TMI_19A_31LD" = "16","TMI_19A_32TI" = "16","TMI_19A_33LD" = "17","TMI_19A_34TI" = "17","TMI_19A_35LD" = "18","TMI_19A_36TI" = "18"))+
+  #scale_fill_discrete(values = colors, )+
+  #facet_wrap(.~ pair) +
+  theme(axis.text.x = element_text(vjust = 1, hjust = 1),legend.text = element_text(face="italic"))
+plot
+```
+
+```{r Symbiont_Density}
+#creating a symbiont density (total syms/sponge vol) column in our data frame
+str(data)
+data$volume = as.integer(data$volume)
+sym_density = c(data$total_sym_ALL/data$volume)
+data = cbind(data,data.frame(sym_density = sym_density))
+max(sym_density, na.rm = TRUE) 
+#symbiont density per sponge host
+plot = ggplot(data, aes(x = sponge_id, y = sym_density, fill = sponge_species)) + 
+  geom_bar(aes(x=sponge_id, y = sym_density, fill = sponge_species), colour="black", stat = "identity") +
+  scale_fill_manual(values = colors,name = "Sponge Species", labels = c("Lissodendoryx isodictyalis", "Tedania ignis")) +
+  xlab("Pair") + # x axis label
+  ylab("Symbiont Density") + # y axis label
+  theme_minimal() +
+  scale_x_discrete(labels=c("TMI_19A_01LD" = "1", "TMI_19A_02TI" = "1","TMI_19A_03LD" = "2","TMI_19A_04TI" = "2","TMI_19A_05LD" = "3","TMI_19A_06TI" = "3","TMI_19A_07LD" = "4","TMI_19A_08TI" = "4","TMI_19A_09LD" = "5","TMI_19A_10TI" = "5","TMI_19A_11LD" = "6","TMI_19A_12TI" = "6","TMI_19A_13LD" = "7","TMI_19A_14TI" = "7","TMI_19A_15LD" = "8","TMI_19A_16TI" = "8","TMI_19A_17LD" = "9","TMI_19A_18TI" = "9","TMI_19A_19LD" = "10","TMI_19A_20TI" = "10","TMI_19A_21LD" = "11","TMI_19A_22TI" = "11","TMI_19A_23LD" = "12","TMI_19A_24TI" = "12","TMI_19A_25LD" = "13","TMI_19A_26TI" = "13","TMI_19A_27LD" = "14","TMI_19A_28TI" = "14","TMI_19A_29LD" = "15","TMI_19A_30TI" = "15","TMI_19A_31LD" = "16","TMI_19A_32TI" = "16","TMI_19A_33LD" = "17","TMI_19A_34TI" = "17","TMI_19A_35LD" = "18","TMI_19A_36TI" = "18"))+
+  #scale_fill_discrete(values = colors, )+
+  #facet_wrap(.~ pair) +
+  theme(axis.text.x = element_text(vjust = 1, hjust = 1),legend.text = element_text(face="italic"))
+plot
+```
+
+```{r test_stats_sym_abundance}
+
+#Let's test normality on symbiont abundance values:
+
+#testing by sponge species
+tedania <- data[which(data$sponge_species == "Tedania_ignis"),]
+lisso <- data[which(data$sponge_species == "Lissodendoryx_isodictyalis"),]
+shapiro.test(lisso$total_sym_ALL) #normal
+shapiro.test(tedania$total_sym_ALL)
+hist(tedania$total_sym_ALL)
+#Tedania data is non-normal with a right skew, so transforming the data with a cube root function:
+hist((tedania$total_sym_ALL)^(1/3))
+shapiro.test((tedania$total_sym_ALL)^(1/3)) #normal
+#testing for similar variance
+library(RVAideMemoire)
+pairwise.var.test(data$total_sym_ALL,data$sponge_species) #good to go
+#since the tedania data is non-normal, we will do a wilcox test for significance
+wilcox.test(data$total_sym_ALL~data$sponge_species) #Not significant
+
+#testing by habitat type (flow)
+channel <- data[which(data$flow_type == "high"),]
+pond <- data[which(data$flow_type == "low"),]
+#checking normality
+shapiro.test(channel$total_sym_ALL)
+shapiro.test(pond$total_sym_ALL)
+#both not normal. let's try a transformation:
+data$total_sym_ALL_transformed = ((data$total_sym_ALL)^(1/3))
+#check normality again:
+channel <- data[which(data$flow_type == "high"),]
+pond <- data[which(data$flow_type == "low"),]
+shapiro.test(channel$total_sym_ALL_transformed) #normal
+shapiro.test(pond$total_sym_ALL_transformed) #normal
+#check variances:
+pairwise.var.test(data$total_sym_ALL,data$flow_type) #good to go
+#normal and homoskedastic! t-test
+t.test(data$total_sym_ALL_transformed ~ data$flow_type, alternative = "two.sided", var.equal = TRUE)
+
+#testing by collection site
+CC_N <- data[which(data$collection_site == "Calabash_Channel_North"),]
+CC_S <- data[which(data$collection_site == "Calabash_Channel_South"),]
+CC <- rbind(CC_N,CC_S)
+CC$collection_site = str_replace(CC$collection_site, "Calabash_Channel_North", "Calabash_Channel")
+CC$collection_site = str_replace(CC$collection_site, "Calabash_Channel_South", "Calabash_Channel")
+CP_N <- data[which(data$collection_site == "Calabash_Pond_North"),]
+CP_S <- data[which(data$collection_site == "Calabash_Pond_South"),]
+CP <- rbind(CP_N,CP_S)
+CP$collection_site = str_replace(CP$collection_site, "Calabash_Pond_North", "Calabash_Pond")
+CP$collection_site = str_replace(CP$collection_site, "Calabash_Pond_South", "Calabash_Pond")
+CCreek <- data[which(data$collection_site == "Crooked_Creek"),]
+SP_N <- data[which(data$collection_site == "Seahorse_Pond_North"),]
+SP_S <- data[which(data$collection_site == "Seahorse_Pond_South"),]
+SP <- rbind(SP_N,SP_S)
+SP$collection_site = str_replace(SP$collection_site, "Seahorse_Pond_North", "Seahorse_Pond")
+SP$collection_site = str_replace(SP$collection_site, "Seahorse_Pond_South", "Seahorse_Pond")
+#testing normality
+shapiro.test(CC_N$total_sym_ALL)
+shapiro.test(CC_S$total_sym_ALL)
+shapiro.test(CC$total_sym_ALL) #normal
+shapiro.test(CP_N$total_sym_ALL)
+#shapiro.test(CP_S$total_sym_ALL)
+shapiro.test(CP$total_sym_ALL)
+shapiro.test(CCreek$total_sym_ALL)
+shapiro.test(SP_N$total_sym_ALL)
+shapiro.test(SP_S$total_sym_ALL) #normal
+shapiro.test(SP$total_sym_ALL) #normal
+#testing for similar variance
+pairwise.var.test(data$total_sym_ALL,data$collection_site) #all similar except for 2 instances (CCreek + CCS, SPS + CCS)
+#data is NOT NORMAL and HOMOSKEDASTIC (in all cases but 2)
+#The non-parametric version of an ANOVA is a kruskal wallace test
+kruskal.test(data$total_sym_ALL~data$collection_site)
+#Welch's t-test with unequal variances
+CCreek_CCS <- rbind(CCreek,CC_S)
+t.test(CCreek_CCS$total_sym_ALL~ CCreek_CCS$collection_site,var.equal=FALSE,conf.level=0.95)
+SPS_CCS <- rbind(SP_S,CC_S)
+t.test(SPS_CCS$total_sym_ALL~ SPS_CCS$collection_site,var.equal=FALSE,conf.level=0.95)
+```
+
+```{r test_stats_sym_density}
+#Now, let's test normality on symbiont density values:
+
+#by sponge species
+shapiro.test(lisso$sym_density)
+hist(lisso$sym_density)
+shapiro.test(tedania$sym_density)
+hist(tedania$sym_density)
+#both not normal. let's try a transformation:
+data$sym_density_transformed = ((data$sym_density)^(1/3))
+hist((lisso$sym_density)^(1/3))
+shapiro.test((lisso$sym_density)^(1/3))
+hist((tedania$sym_density)^(1/3))
+shapiro.test((tedania$sym_density)^(1/3)) #good to go
+#checking variances
+pairwise.var.test(data$sym_density_transformed,data$sponge_species) #homoskedastic
+#t-test
+t.test(data$sym_density_transformed~data$sponge_species, alternative = "two.sided", var.equal = TRUE)
+
+#by habitat type (flow)
+shapiro.test(channel$sym_density)
+shapiro.test(pond$sym_density)
+#both not normal let's try a transformation:
+channel <- data[which(data$flow_type == "high"),]
+pond <- data[which(data$flow_type == "low"),]
+hist(channel$sym_density_transformed)
+shapiro.test(channel$sym_density_transformed)
+hist(pond$sym_density_transformed)
+shapiro.test(pond$sym_density_transformed) #good to go
+#checking variances
+pairwise.var.test(data$sym_density_transformed,data$flow_type) #homoskedastic
+#t-test
+t.test(data$sym_density_transformed~data$flow_type, alternative = "two.sided", var.equal = TRUE)
+
+#testing by collection site
+shapiro.test(CC_N$sym_density)
+shapiro.test(CC_S$sym_density) #normal
+shapiro.test(CC$sym_density)
+shapiro.test(CP_N$sym_density)
+#shapiro.test(CP_S$sym_density)
+shapiro.test(CP$sym_density)
+shapiro.test(CCreek$sym_density) #normal
+shapiro.test(SP_N$sym_density)
+shapiro.test(SP_S$sym_density)
+shapiro.test(SP$sym_density)
+#checking variances
+pairwise.var.test(data$sym_density,data$collection_site)
+#NOT NORMAL and HOMOSKEDASTIC = all but CCS/CCN, CPN/CCN, CPS/CCS, CCreek/CCS, SPN/CCS, SPS/CCS, CPS/CPN, CCreek/CPN, SPS/CPN, SPS/SPN
+#The non-parametric version of an ANOVA is a kruskal wallace test
+kruskal.test(data$sym_density~data$collection_site)
+#Welch's t-test with unequal variances
+CCS_CCN <- rbind(CC_S,CC_N)
+t.test(CCS_CCN$sym_density~ CCS_CCN$collection_site,var.equal=FALSE,conf.level=0.95)
+CPN_CCN <- rbind(CP_N,CC_N)
+t.test(CPN_CCN$sym_density~ CPN_CCN$collection_site,var.equal=FALSE,conf.level=0.95)
+CPS_CCS <- rbind(CP_S,CC_S)
+t.test(CPS_CCS$sym_density~ CPS_CCS$collection_site,var.equal=FALSE,conf.level=0.95)
+CCreek_CCS <- rbind(CCreek,CC_S)
+t.test(CCreek_CCS$sym_density~ CCreek_CCS$collection_site,var.equal=FALSE,conf.level=0.95)
+SPN_CCS <- rbind(SP_N,CC_S)
+t.test(SPN_CCS$sym_density~ SPN_CCS$collection_site,var.equal=FALSE,conf.level=0.95)
+SPS_CCS <- rbind(SP_S,CC_S)
+t.test(SPS_CCS$sym_density~ SPS_CCS$collection_site,var.equal=FALSE,conf.level=0.95)
+CPS_CPN <- rbind(CP_S,CP_N)
+t.test(CPS_CPN$sym_density~ CPS_CPN$collection_site,var.equal=FALSE,conf.level=0.95)
+CCreek_CPN <- rbind(CCreek,CP_N)
+t.test(CCreek_CPN$sym_density~ CCreek_CPN$collection_site,var.equal=FALSE,conf.level=0.95)
+SPS_CPN <- rbind(SP_S,CP_N)
+t.test(SPS_CPN$sym_density~ SPS_CPN$collection_site,var.equal=FALSE,conf.level=0.95)
+SPS_SPN <- rbind(SP_S,SP_N)
+t.test(SPS_SPN$sym_density~ SPS_SPN$collection_site,var.equal=FALSE,conf.level=0.95)
+```
+
+```{r Forces_abundance}
+
+#avg_orgs = summarySE(data, measurevar="total_sym_ALL", groupvars="sponge_species")
+
+# symbionts by sponge species 
+box1 = ggplot(data, aes(x=sponge_species,y=total_sym_ALL,color=sponge_species))+
+  theme_bw()+
+  geom_jitter(aes(color = sponge_species), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = colors, name="Sponge Species")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = sponge_species), alpha = 0.3)+
+  stat_compare_means(method = "wilcox")+ 
+  scale_x_discrete(breaks=c("Lissodendoryx_isodictyalis","Tedania_ignis"),
+        labels=c("L. isodictyalis", "T. ignis"))+
+  theme(axis.text.x = element_text(face="italic",size=20),legend.position="none")+
+  ylab("Average Number of Symbionts")+
+  xlab("Sponge Species")
+box1
+
+#symbionts by habitat type
+colors2 = c("#F51913", "#5E78DC")
+box2 = ggplot(data, aes(x=flow_type,y=total_sym_ALL_transformed,color=flow_type))+
+  theme_bw()+
+  geom_jitter(aes(color = flow_type), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = colors2, name="Habitat Type")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = flow_type), alpha = 0.3)+
+  stat_compare_means(method = "t.test")+ 
+  scale_x_discrete(breaks=c("high","low"),
+        labels=c("Channels", "Ponds"))+
+  theme(axis.text.x = element_text(size=20),legend.position="none")+
+  ylab("Average Number of Symbionts")+
+  xlab("Habitat Type")
+box2
+
+#symbionts by collection site
+#First, re-organizing dataframe to include all sites grouped
+CC_N <- data[which(data$collection_site == "Calabash_Channel_North"),]
+CC_S <- data[which(data$collection_site == "Calabash_Channel_South"),]
+CC <- rbind(CC_N,CC_S)
+CC$collection_site = str_replace(CC$collection_site, "Calabash_Channel_North", "Calabash_Channel")
+CC$collection_site = str_replace(CC$collection_site, "Calabash_Channel_South", "Calabash_Channel")
+CP_N <- data[which(data$collection_site == "Calabash_Pond_North"),]
+CP_S <- data[which(data$collection_site == "Calabash_Pond_South"),]
+CP <- rbind(CP_N,CP_S)
+CP$collection_site = str_replace(CP$collection_site, "Calabash_Pond_North", "Calabash_Pond")
+CP$collection_site = str_replace(CP$collection_site, "Calabash_Pond_South", "Calabash_Pond")
+CCreek <- data[which(data$collection_site == "Crooked_Creek"),]
+SP_N <- data[which(data$collection_site == "Seahorse_Pond_North"),]
+SP_S <- data[which(data$collection_site == "Seahorse_Pond_South"),]
+SP <- rbind(SP_N,SP_S)
+SP$collection_site = str_replace(SP$collection_site, "Seahorse_Pond_North", "Seahorse_Pond")
+SP$collection_site = str_replace(SP$collection_site, "Seahorse_Pond_South", "Seahorse_Pond")
+data_sites = rbind(data,CC,CP,SP)
+#now plotting
+library(wesanderson)
+site_colors = wes_palette("Zissou1", 10, type = "continuous")
+box3 = ggplot(data_sites, aes(x=factor(collection_site, level =c("Calabash_Channel_North","Calabash_Channel_South","Calabash_Channel","Calabash_Pond_North","Calabash_Pond_South","Calabash_Pond","Seahorse_Pond_North","Seahorse_Pond_South","Seahorse_Pond","Crooked_Creek")),y=total_sym_ALL,color=collection_site))+
+  theme_bw()+
+  geom_jitter(aes(color = collection_site), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = site_colors, name="Collection Site")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = collection_site), alpha = 0.3)+
+  scale_x_discrete(breaks=c("Calabash_Channel_North","Calabash_Channel_South","Calabash_Channel","Calabash_Pond_North","Calabash_Pond_South","Calabash_Pond","Seahorse_Pond_North","Seahorse_Pond_South","Seahorse_Pond","Crooked_Creek"),
+        labels=c("Calabash Channel North","Calabash Channel South","Calabash Channel","Calabash Pond North","Calabash Pond South","Calabash Pond","Seahorse Pond North","Seahorse Pond South","Seahorse Pond","Crooked Creek"))+
+  theme(axis.text.x = element_text(size=7),legend.position="none")+
+  ylab("Average Number of Symbionts")+
+  xlab("Collection Site")
+box3
+
+#symbionts by sponge volume
+data$volume = as.integer(data$volume)
+str(data)
+scatplot = ggplot(data, aes(x=volume, y=total_sym_ALL, color = sponge_species)) +
+        geom_point(shape=18, size = 3, aes(color = sponge_species)) +
+        geom_smooth(method="lm", size = 0.5) +
+        scale_color_manual(values = colors, name = "Sponge Species", labels = c("Lissodendoryx isodictyalis", "Tedania ignis")) +
+        labs(y = "Total Number of Symbionts", x = "Volume (mL)", color = "Sponge Species") +
+        facet_wrap(~sponge_species) +
+        theme(legend.text = element_text(face="italic"))+
+        stat_regline_equation(label.y = 40, color = "black", aes(size=30)) +
+        stat_cor(label.y = 35, color = "black", aes(size=30)) +
+        theme_minimal()
+scatplot
+# sanity check our linear model
+linear_model = lm(total_organisms ~ volume, data = data)
+summary(linear_model)
+```
+
+```{r Forces_density}
+avg_density = summarySE(data, measurevar="sym_density", groupvars="sponge_species")
+
+# density by sponge species 
+box1 = ggplot(data, aes(x=sponge_species,y=sym_density_transformed,color=sponge_species))+
+  theme_bw()+
+  geom_jitter(aes(color = sponge_species), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = colors, name="Sponge Species")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = sponge_species), alpha = 0.3)+
+  stat_compare_means(method = "t.test")+ 
+  scale_x_discrete(breaks=c("Lissodendoryx_isodictyalis","Tedania_ignis"),
+        labels=c("L. isodictyalis", "T. ignis"))+
+  theme(axis.text.x = element_text(face="italic",size=20),legend.position="none")+
+  ylab("Average Symbiont Density (^1/3)")+
+  xlab("Sponge Species")
+box1
+
+#density by habitat type
+box2 = ggplot(data, aes(x=flow_type,y=sym_density_transformed,color=flow_type))+
+  theme_bw()+
+  geom_jitter(aes(color = flow_type), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = colors2, name="Habitat Type")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = flow_type), alpha = 0.3)+
+  stat_compare_means(method = "t.test")+ 
+  scale_x_discrete(breaks=c("high","low"),
+        labels=c("Channels", "Ponds"))+
+  theme(axis.text.x = element_text(size=20),legend.position="none")+
+  ylab("Average Symbiont Density (^1/3)")+
+  xlab("Habitat Type")
+box2
+box2 = ggboxplot(data, x = "flow_type", y = "sym_density_transformed",
+                 color = "flow_type", palette = colors2)+
+  stat_compare_means(method = "t.test")
+box2
+
+#density by collection site
+box3 = ggplot(data_sites, aes(x=factor(collection_site, level =c("Calabash_Channel_North","Calabash_Channel_South","Calabash_Channel","Calabash_Pond_North","Calabash_Pond_South","Calabash_Pond","Seahorse_Pond_North","Seahorse_Pond_South","Seahorse_Pond","Crooked_Creek")),y=sym_density,color=collection_site))+
+  theme_bw()+
+  geom_jitter(aes(color = collection_site), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = site_colors, name="Collection Site")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = collection_site), alpha = 0.3)+
+  scale_x_discrete(breaks=c("Calabash_Channel_North","Calabash_Channel_South","Calabash_Channel","Calabash_Pond_North","Calabash_Pond_South","Calabash_Pond","Seahorse_Pond_North","Seahorse_Pond_South","Seahorse_Pond","Crooked_Creek"),
+        labels=c("Calabash Channel North","Calabash Channel South","Calabash Channel","Calabash Pond North","Calabash Pond South","Calabash Pond","Seahorse Pond North","Seahorse Pond South","Seahorse Pond","Crooked Creek"))+
+  theme(axis.text.x = element_text(size=7),legend.position="none")+
+  ylab("Average Symbiont Density")+
+  xlab("Collection Site")
+box3
+```
+
+```{r Taxa_Abundance}
+
+data_abundance = data %>%
+  select(sponge_id, pair, collection_site, sponge_species,
+         Alpheidae,	Eunicidae,	Actiniaria,	Amphipoda,	Syllidae,	Clitellata,	Phyllodocida,	Ophiotrichidae,	Ophionereididae,	Ophiactis,	Ophiuroidea,	Fissurella,	Columbellidae,	Mollusca,	Pilumnidae,	Hippolytidae,	Pelia_mutica,	Petrolisthes,	Periclimenaeus,	Panulirus_argus)
+
+head(data_abundance)
+
+# now reshape the data for making our stacked barplots
+# "sample_id" should be replaced with the name of the column for your sponge id
+# you don't need to replace "taxa" with anything. 
+data_long <- melt(data_abundance, id.vars = c("sponge_id","pair","collection_site","sponge_species"), variable.name = "taxa")
+head(data_long)
+str(data_long)
+
+taxa_colors = wes_palette("FantasticFox1", 24, type = "continuous")
+
+#diversity abundance barplots
+diverse_abundance = ggplot(data_long, aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Sponge ID") + # x axis label
+  ylab("Abundance") + # y axis label
+  labs(fill = "Taxa") +
+  theme_minimal() +
+  #facet_wrap(.~ pair) +
+  scale_x_discrete(labels=c("TMI_19A_01LD" = "1LD", "TMI_19A_02TI" = "2TI","TMI_19A_03LD" = "3LD","TMI_19A_04TI" = "4TI","TMI_19A_05LD" = "5LD","TMI_19A_06TI" = "6TI","TMI_19A_07LD" = "7LD","TMI_19A_08TI" = "8TI","TMI_19A_09LD" = "9LD","TMI_19A_10TI" = "10TI","TMI_19A_11LD" = "11LD","TMI_19A_12TI" = "12TI","TMI_19A_13LD" = "13LD","TMI_19A_14TI" = "14TI","TMI_19A_15LD" = "15LD","TMI_19A_16TI" = "16TI","TMI_19A_17LD" = "17LD","TMI_19A_18TI" = "18TI","TMI_19A_19LD" = "19LD","TMI_19A_20TI" = "20TI","TMI_19A_21LD" = "21LD","TMI_19A_22TI" = "22TI","TMI_19A_23LD" = "23LD","TMI_19A_24TI" = "24TI","TMI_19A_25LD" = "25LD","TMI_19A_26TI" = "26TI","TMI_19A_27LD" = "27LD","TMI_19A_28TI" = "28TI","TMI_19A_29LD" = "29LD","TMI_19A_30TI" = "30TI","TMI_19A_31LD" = "31LD","TMI_19A_32TI" = "32TI","TMI_19A_33LD" = "33LD","TMI_19A_34TI" = "34TI","TMI_19A_35LD" = "35LD","TMI_19A_36TI" = "36TI"))+
+  theme(axis.text.x = element_text(size=15,angle = 45, vjust = 1, hjust = 1))
+diverse_abundance
+
+#### Taxa Abundance Across All Sponges Plot ####
+data2 = read.csv("/Users/annabelhughes/Desktop/Honors\ Thesis/CODE/TAXA_LIST.csv")
+head(data2)
+
+str(data2)
+data2$taxa = as.factor(data2$taxa)
+str(data2)
+
+taxa_colors2 = wes_palette("FantasticFox1", 20, type = "continuous")
+
+taxa_counts = ggplot(data2, aes(x = taxa, y = count, fill = taxa)) + 
+  geom_bar(aes(x = taxa, y = count, fill = taxa), colour = "black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors2) +
+  xlab("Taxa") + # x axis label
+  ylab("Abundance") +# y axis label 
+  theme_minimal() +
+  labs(fill = "Taxa") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+taxa_counts
+```
+
+```{r paired_design_plots}
+#### Taxa Abundance Barplots by Pair ####
+plot1 = data_long %>%
+  filter(pair == "pair1") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_01LD",
+"TMI_19A_02TI"),
+        labels=c("L", "T"))
+plot1
+
+plot2 = data_long %>%
+  filter(pair == "pair2") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_03LD",
+"TMI_19A_04TI"),
+        labels=c("L", "T")) 
+plot2
+
+plot3 = data_long %>%
+  filter(pair == "pair3") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Seahorse Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_05LD",
+"TMI_19A_06TI"),
+        labels=c("L", "T"))
+plot3
+
+plot4 = data_long %>%
+  filter(pair == "pair4") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Seahorse Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_07LD",
+"TMI_19A_08TI"),
+        labels=c("L", "T"))
+plot4
+
+plot5 = data_long %>%
+  filter(pair == "pair5") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_09LD",
+"TMI_19A_10TI"),
+        labels=c("L", "T"))
+plot5
+
+plot6 = data_long %>%
+  filter(pair == "pair6") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_11LD",
+"TMI_19A_12TI"),
+        labels=c("L", "T"))
+plot6
+
+plot7 = data_long %>%
+  filter(pair == "pair7") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_13LD",
+"TMI_19A_14TI"),
+        labels=c("L", "T"))
+plot7
+
+plot8 = data_long %>%
+  filter(pair == "pair8") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_15LD",
+"TMI_19A_16TI"),
+        labels=c("L", "T"))
+plot8
+
+plot9 = data_long %>%
+  filter(pair == "pair9") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Crooked Creek") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_17LD",
+"TMI_19A_18TI"),
+        labels=c("L", "T"))
+plot9
+
+plot10 = data_long %>%
+  filter(pair == "pair10") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Crooked Creek") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_19LD",
+"TMI_19A_20TI"),
+        labels=c("L", "T"))
+plot10
+
+plot11 = data_long %>%
+  filter(pair == "pair11") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_21LD",
+"TMI_19A_22TI"),
+        labels=c("L", "T"))
+plot11
+
+plot12 = data_long %>%
+  filter(pair == "pair12") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_23LD",
+"TMI_19A_24TI"),
+        labels=c("L", "T")) 
+plot12
+
+plot13 = data_long %>%
+  filter(pair == "pair13") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_25LD",
+"TMI_19A_26TI"),
+        labels=c("L", "T"))
+plot13
+
+plot14 = data_long %>%
+  filter(pair == "pair14") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Channel") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_27LD",
+"TMI_19A_28TI"),
+        labels=c("L", "T"))
+plot14
+
+plot15 = data_long %>%
+  filter(pair == "pair15") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Seahorse Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_29LD",
+"TMI_19A_30TI"),
+        labels=c("L", "T"))
+plot15
+
+plot16 = data_long %>%
+  filter(pair == "pair16") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Seahorse Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_31LD",
+"TMI_19A_32TI"),
+        labels=c("L", "T"))
+plot16
+
+plot17 = data_long %>%
+  filter(pair == "pair17") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_33LD",
+"TMI_19A_34TI"),
+        labels=c("L", "T"))
+plot17
+
+plot18 = data_long %>%
+  filter(pair == "pair18") %>%
+  ggplot(aes(x = sponge_id, y = value, fill = taxa)) + 
+  geom_bar(aes(x=sponge_id, y = value, fill = taxa), colour="black", stat = "identity") +
+  scale_fill_manual(values = taxa_colors) +
+  xlab("Calabash Pond") + # x axis label
+  ylab("Abundance") + # y axis label
+  theme_minimal() +
+  #facet_wrap(~ pair) +
+  theme(legend.position = "none") +
+  scale_x_discrete(breaks=c("TMI_19A_35LD",
+"TMI_19A_36TI"),
+        labels=c("L", "T"))
+plot18
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, plot7, plot8, plot9, plot10, plot11, plot12, plot13, plot14, plot15, plot16, plot17, plot18, ncol =6 , nrow = 3)
+
+```
+
+```{r Shannon_Diversity}
+
+d1 = as.numeric(data[1,7:26])
+d2 = as.numeric(data[2,7:26])
+d3 = as.numeric(data[3,7:26])
+d4 = as.numeric(data[4,7:26])
+d5 = as.numeric(data[5,7:26])
+d6 = as.numeric(data[6,7:26])
+d7 = as.numeric(data[7,7:26])
+d8 = as.numeric(data[8,7:26])
+d9 = as.numeric(data[9,7:26])
+d10 = as.numeric(data[10,7:26])
+d11 = as.numeric(data[11,7:26])
+d12 = as.numeric(data[12,7:26])
+d13 = as.numeric(data[13,7:26])
+d14 = as.numeric(data[14,7:26])
+d15 = as.numeric(data[15,7:26])
+d16 = as.numeric(data[16,7:26])
+d17 = as.numeric(data[17,7:26])
+d18 = as.numeric(data[18,7:26])
+d19 = as.numeric(data[19,7:26])
+d20 = as.numeric(data[20,7:26])
+d21 = as.numeric(data[21,7:26])
+d22 = as.numeric(data[22,7:26])
+d23 = as.numeric(data[23,7:26])
+d24 = as.numeric(data[24,7:26])
+d25 = as.numeric(data[25,7:26])
+d26 = as.numeric(data[26,7:26])
+d27 = as.numeric(data[27,7:26])
+d28 = as.numeric(data[28,7:26])
+d29 = as.numeric(data[29,7:26])
+d30 = as.numeric(data[30,7:26])
+d31 = as.numeric(data[31,7:26])
+d32 = as.numeric(data[32,7:26])
+d33 = as.numeric(data[33,7:26])
+d34 = as.numeric(data[34,7:26])
+d35 = as.numeric(data[35,7:26])
+d36 = as.numeric(data[36,7:26])
+
+H1 = diversity(d1,"shannon")
+H2 = diversity(d2,"shannon")
+H3 = diversity(d3,"shannon")
+H4 = diversity(d4,"shannon")
+H5 = diversity(d5,"shannon")
+H6 = diversity(d6,"shannon")
+H7 = diversity(d7,"shannon")
+H8 = diversity(d8,"shannon")
+H9 = diversity(d9,"shannon")
+H10 = diversity(d10,"shannon")
+H11 = diversity(d11,"shannon")
+H12 = diversity(d12,"shannon")
+H13 = diversity(d13,"shannon")
+H14 = diversity(d14,"shannon")
+H15 = diversity(d15,"shannon")
+H16 = diversity(d16,"shannon")
+H17 = diversity(d17,"shannon")
+H18 = diversity(d18,"shannon")
+H19 = diversity(d19,"shannon")
+H20 = diversity(d20,"shannon")
+H21 = diversity(d21,"shannon")
+H22 = diversity(d22,"shannon")
+H23 = diversity(d23,"shannon")
+H24 = diversity(d24,"shannon")
+H25 = diversity(d25,"shannon")
+H26 = diversity(d26,"shannon")
+H27 = diversity(d27,"shannon")
+H28 = diversity(d28,"shannon")
+H29 = diversity(d29,"shannon")
+H30 = diversity(d30,"shannon")
+H31 = diversity(d31,"shannon")
+H32 = diversity(d32,"shannon")
+H33 = diversity(d33,"shannon")
+H34 = diversity(d34,"shannon")
+H35 = diversity(d35,"shannon")
+H36 = diversity(d36,"shannon")
+diversity = c(H1,H2,H3,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,H14,H15,H16,H17,H18,H19,H20,H21,H22,H23,H24,H25,H26,H27,H28,H29,H30,H31,H32,H33,H34,H35,H36)
+diversity
+data_diversity = cbind(data, data.frame(diversity = diversity))
+
+str(data_diversity)
+
+data_diversity_plot = data_diversity %>%
+  drop_na(diversity)
+#histogram of Hs values
+hist(data_diversity_plot$diversity, breaks = 10, col='coral1',xlab='Hs',main='')
+
+#### Hs by Sponge Species ####
+diversity_means = summarySE(data_diversity_plot, measurevar="diversity", groupvars="sponge_species")
+#checking normality
+tedania <- data_diversity_plot[which(data_diversity_plot$sponge_species == "Tedania_ignis"),]
+lisso <- data_diversity_plot[which(data_diversity_plot$sponge_species == "Lissodendoryx_isodictyalis"),]
+shapiro.test(tedania$diversity)
+shapiro.test(lisso$diversity)
+#no transformations help normality, so no transformations on data
+#checking variances
+pairwise.var.test(data_diversity_plot$diversity,data_diversity_plot$sponge_species) #good to go
+kruskal.test(data_diversity_plot$diversity~data_diversity_plot$sponge_species)
+plot = ggplot(data_diversity_plot, aes(x=sponge_species,y=diversity,color=sponge_species))+
+  theme_bw()+
+  geom_jitter(aes(color = sponge_species), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = colors, name="Sponge Species")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = sponge_species), alpha = 0.3)+
+  stat_compare_means(method = "kruskal", aes(size=30))+ 
+  scale_x_discrete(breaks=c("Lissodendoryx_isodictyalis","Tedania_ignis"),
+        labels=c("L. isodictyalis", "T. ignis"))+
+  theme(axis.text.x = element_text(face="italic",size=20),legend.position="none")+
+  xlab("Sponge Species")+
+  ylab("Shannon Diversity Index (Hs)")
+plot
+
+#### Hs by Collection Site ####
+diversity_means_sites = summarySE(data_diversity_plot, measurevar="diversity", groupvars="collection_site")
+
+#First, re-organizing dataframe to include all sites grouped after diversity calculations
+CC_N <- data_diversity_plot[which(data_diversity_plot$collection_site == "Calabash_Channel_North"),]
+CC_S <- data_diversity_plot[which(data_diversity_plot$collection_site == "Calabash_Channel_South"),]
+CC <- rbind(CC_N,CC_S)
+CC$collection_site = str_replace(CC$collection_site, "Calabash_Channel_North", "Calabash_Channel")
+CC$collection_site = str_replace(CC$collection_site, "Calabash_Channel_South", "Calabash_Channel")
+CP_N <- data_diversity_plot[which(data_diversity_plot$collection_site == "Calabash_Pond_North"),]
+CP_S <- data_diversity_plot[which(data_diversity_plot$collection_site == "Calabash_Pond_South"),]
+CP <- rbind(CP_N,CP_S)
+CP$collection_site = str_replace(CP$collection_site, "Calabash_Pond_North", "Calabash_Pond")
+CP$collection_site = str_replace(CP$collection_site, "Calabash_Pond_South", "Calabash_Pond")
+CCreek <- data_diversity_plot[which(data_diversity_plot$collection_site == "Crooked_Creek"),]
+SP_N <- data_diversity_plot[which(data_diversity_plot$collection_site == "Seahorse_Pond_North"),]
+SP_S <- data_diversity_plot[which(data_diversity_plot$collection_site == "Seahorse_Pond_South"),]
+SP <- rbind(SP_N,SP_S)
+SP$collection_site = str_replace(SP$collection_site, "Seahorse_Pond_North", "Seahorse_Pond")
+SP$collection_site = str_replace(SP$collection_site, "Seahorse_Pond_South", "Seahorse_Pond")
+data_diversity_sites = rbind(data_diversity_plot,CC,CP,SP)
+
+site_colors = wes_palette("Zissou1", 10, type = "continuous")
+
+plot = ggplot(data_diversity_sites, aes(x=factor(collection_site, level =c("Calabash_Channel_North","Calabash_Channel_South","Calabash_Channel","Calabash_Pond_North","Calabash_Pond_South","Calabash_Pond","Seahorse_Pond_North","Seahorse_Pond_South","Seahorse_Pond","Crooked_Creek")),y=diversity,color=collection_site))+
+  theme_bw()+
+  geom_jitter(aes(color = collection_site), width = 0.2, alpha = .6, size = 1.25)+
+  scale_color_manual(values = site_colors, name="Collection Site")+
+  stat_summary(fun=mean, geom="point", shape=20, size=6, color="grey", fill="grey")+
+  geom_boxplot(aes(color = collection_site), alpha = 0.3)+
+  scale_x_discrete(breaks=c("Calabash_Channel_North","Calabash_Channel_South","Calabash_Channel","Calabash_Pond_North","Calabash_Pond_South","Calabash_Pond","Seahorse_Pond_North","Seahorse_Pond_South","Seahorse_Pond","Crooked_Creek"),
+        labels=c("Calabash Channel North","Calabash Channel South","Calabash Channel","Calabash Pond North","Calabash Pond South","Calabash Pond","Seahorse Pond North","Seahorse Pond South","Seahorse Pond","Crooked Creek"))+
+  theme(axis.text.x = element_text(size=7),legend.position="none")+
+  ylab("Shannon Diversity Index (Hs)")+
+  xlab("Collection Site")
+plot
+```
+
+```{r bloop}
+#original shannon diversity plot:
+plot = ggplot(diversity_means,aes(x = sponge_species, y = diversity, color = sponge_species, pch = sponge_species))+
+  theme_bw()+
+  geom_point(size = 3, position = position_dodge(width=0.3))+
+  geom_errorbar(aes(x = sponge_species, ymax = diversity+ci, ymin = diversity-ci), width = .2, position = position_dodge(width=0.3)) +
+  scale_color_manual(values = colors) +
+  xlab("Sponge Species")+
+  ylab("Shannon Diversity Index (Hs)")
+plot 
+
+#Hs by collection site
+colors = wes_palette("Zissou1", 8, type = "continuous")
+
+plot = ggplot(diversity_means_sites,aes(x = collection_site, y = diversity, color = collection_site, pch = collection_site))+
+  theme_bw()+
+  geom_point(size = 4, position = position_dodge(width=0.5))+
+  geom_errorbar(aes(x = collection_site, ymax = diversity+ci, ymin = diversity-ci), width = .2, position = position_dodge(width=0.3)) +
+  scale_color_manual(values = colors) +
+  xlab("Collection Sites")+
+  ylab("Shannon Diversity Index (Hs)")
+plot 
+```
+
+```{r averages_ish}
+data[is.na(data)] = 0
+asd_species = summarySE(data=data, measurevar='sym_density', groupvars='sponge_species')
+pond[is.na(pond)] = 0
+max(CCreek$total_sym_ALL)
+asd_habitat = summarySE(data=data, measurevar='sym_density', groupvars='flow_type')
+asd_site = summarySE(data=data, measurevar='sym_density', groupvars='collection_site')
+CP[is.na(CP)] = 0
+asd_CC = summarySE(data=CC, measurevar='sym_density', groupvars='collection_site')
+asd_CP = summarySE(data=CP, measurevar='sym_density', groupvars='collection_site')
+asd_SP = summarySE(data=SP, measurevar='sym_density', groupvars='collection_site')
+asc_site = summarySE(data=data, measurevar='total_sym_ALL', groupvars='collection_site')
+asc_CC = summarySE(data=CC, measurevar='total_sym_ALL', groupvars='collection_site')
+asc_CP = summarySE(data=CP, measurevar='total_sym_ALL', groupvars='collection_site')
+asc_SP = summarySE(data=SP, measurevar='total_sym_ALL', groupvars='collection_site')
+```
+
+
